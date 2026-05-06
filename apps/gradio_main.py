@@ -1631,11 +1631,14 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS", head=head_html) as demo
                         </div>
                     </div>
                     <div class="warning-banner-item" style="background: #dcfce7; border-color: #86efac;">
-                        <strong style="color: #15803d;">🚀 VieNeu-TTS-v2</strong>
+                        <strong style="color: #15803d;">🐢 Hệ máy CPU</strong>
                         <div class="warning-banner-content" style="color: #166534;">
-                            Phiên bản <b>VieNeu-TTS-v2</b> hỗ trợ <b>song ngữ Anh-Việt</b> và <b>hội thoại</b>. Hiện đã có cả bản <b>GPU</b> và <b>CPU (GGUF)</b>. 
+                            Mặc định là <b>VieNeu-TTS-v2-Turbo (CPU)</b> để tốc độ tổng hợp nhanh nhất có thể, tuy nhiên có hạn chế về chất lượng âm thanh. Trong trường hợp bạn cần chất lượng tốt nhất hãy sử dụng <b>VieNeu-TTS-v2 (CPU)</b>.
                         </div>
                     </div>
+                </div>
+                <div style="margin-top: 12px; font-size: 0.85rem; color: #92400e; border-top: 1px dashed #fcd34d; padding-top: 8px;">
+                    💡 <b>Mẹo:</b> Nếu máy bạn có GPU mà không thấy các phiên bản GPU hãy xem lại cách cài đặt <code>uv sync --group gpu</code>
                 </div>
             </div>
             """)
