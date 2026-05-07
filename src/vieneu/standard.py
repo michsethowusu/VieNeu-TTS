@@ -20,12 +20,13 @@ class VieNeuTTS(BaseVieneuTTS):
 
     def __init__(
         self,
-        backbone_repo: str = "pnnbao-ump/VieNeu-TTS-0.3B",
+        backbone_repo: str = "pnnbao-ump/VieNeu-TTS-v2",
         backbone_device: str = "cpu",
         codec_repo: str = "neuphonic/neucodec-onnx-decoder-int8",
         codec_device: str = "cpu",
         hf_token: Optional[str] = None,
-        gguf_filename: Optional[str] = "VieNeu-TTS-0.3B-Q4_K_M.gguf",
+        gguf_filename: Optional[str] = "VieNeu-TTS-v2-Q4-K-M.gguf",
+        emotion: str = "natural",
     ):
         super().__init__()
 
@@ -44,6 +45,9 @@ class VieNeuTTS(BaseVieneuTTS):
 
         # Only pnnbao-ump/VieNeu-TTS uses the full chat-format prompt
         self.use_chat_format = backbone_repo.rstrip("/").endswith("pnnbao-ump/VieNeu-TTS")
+        
+        # Set default emotion tag
+        self.default_emotion = "<|emotion_0|>" if emotion == "natural" else None
 
         if backbone_repo:
             self._load_backbone(backbone_repo, backbone_device, hf_token, gguf_filename)
@@ -204,9 +208,9 @@ class VieNeuTTS(BaseVieneuTTS):
             ref_phonemes = self.get_ref_phonemes(ref_text)
             phonemes = phonemize_with_dict(chunks[0], skip_normalize=True)
             if self._is_quantized_model:
-                output_str = self._infer_ggml(ref_codes, ref_phonemes, phonemes, temperature, top_k, emotion_tag=kwargs.get('emotion_tag'))
+                output_str = self._infer_ggml(ref_codes, ref_phonemes, phonemes, temperature, top_k, emotion_tag=kwargs.get('emotion_tag', self.default_emotion))
             else:
-                prompt_ids = self._apply_chat_template(ref_codes, ref_phonemes, phonemes, emotion_tag=kwargs.get('emotion_tag'))
+                prompt_ids = self._apply_chat_template(ref_codes, ref_phonemes, phonemes, emotion_tag=kwargs.get('emotion_tag', self.default_emotion))
                 output_str = self._infer_torch(prompt_ids, temperature, top_k)
             wav = self._decode(output_str)
             if apply_watermark:
@@ -251,7 +255,7 @@ class VieNeuTTS(BaseVieneuTTS):
             import torch
             batch_prompt_ids = []
             for phonemes in chunk_phonemes:
-                prompt_ids = self._apply_chat_template(ref_codes, ref_phonemes, phonemes, emotion_tag=kwargs.get('emotion_tag'))
+                prompt_ids = self._apply_chat_template(ref_codes, ref_phonemes, phonemes, emotion_tag=kwargs.get('emotion_tag', self.default_emotion))
                 batch_prompt_ids.append(torch.tensor(prompt_ids))
 
             inputs = self.tokenizer.pad(
@@ -303,9 +307,9 @@ class VieNeuTTS(BaseVieneuTTS):
 
         for phonemes in chunk_phonemes:
             if self._is_quantized_model:
-                yield from self._infer_stream_ggml(ref_codes, ref_phonemes, phonemes, temperature, top_k, emotion_tag=kwargs.get('emotion_tag'))
+                yield from self._infer_stream_ggml(ref_codes, ref_phonemes, phonemes, temperature, top_k, emotion_tag=kwargs.get('emotion_tag', self.default_emotion))
             else:
-                prompt_ids = self._apply_chat_template(ref_codes, ref_phonemes, phonemes, emotion_tag=kwargs.get('emotion_tag'))
+                prompt_ids = self._apply_chat_template(ref_codes, ref_phonemes, phonemes, emotion_tag=kwargs.get('emotion_tag', self.default_emotion))
                 output_str = self._infer_torch(prompt_ids, temperature, top_k)
                 wav = self._decode(output_str)
                 yield self._apply_watermark(wav)

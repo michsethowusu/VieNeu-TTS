@@ -98,17 +98,16 @@ pip install vieneu --extra-index-url https://abetlen.github.io/llama-cpp-python/
 ```python
 from vieneu import Vieneu
 
-# Initialize in Standard mode (Default - Optimized 0.3B GGUF + ONNX)
-# Works out-of-the-box on CPU without requiring PyTorch!
-tts = Vieneu()
+# Initialize in Standard mode (Default - Highest quality)
+tts = Vieneu(emotion="natural") # emotion="natural" (giọng tự nhiên - mặc định) hoặc "storytelling" (giọng kể chuyện)
 
-# 1. Simple synthesis (uses default Southern Male voice 'Xuân Vĩnh')
+# 1. Simple synthesis (uses default Northern Female voice 'Trúc Ly')
 text = "Chào bạn. Tôi là VieNeu-TTS, tôi có thể giúp bạn đọc sách, làm chatbot thời gian thực, thậm chí clone giọng nói của bạn."
 audio = tts.infer(text=text)
 
 # Save to file
-tts.save(audio, "output_Xuân Vĩnh.wav")
-print("💾 Saved to output_Xuân Vĩnh.wav")
+tts.save(audio, "output_Trúc Ly.wav")
+print("💾 Saved to output_Trúc Ly.wav")
 
 # 2. Using a specific Preset Voice
 voices = tts.list_preset_voices()
@@ -127,6 +126,9 @@ print("💾 Saved to output_Phạm Tuyên.wav")
 
 ### 🚀 Turbo Mode (Bilingual & Extreme Speed)
 Use `mode="turbo"` for the fastest possible inference, especially optimized for real-time English-Vietnamese code-switching.
+> [!WARNING]
+> Turbo Mode has lower audio quality compared to other modes and may produce artifacts or errors for very short sentences.
+
 
 ```python
 from vieneu import Vieneu
