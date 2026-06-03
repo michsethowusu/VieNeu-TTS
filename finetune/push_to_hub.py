@@ -192,18 +192,22 @@ def convert_gguf(hf_repo: str):
     if not os.path.exists(merged_path):
         raise FileNotFoundError(f"Merged model not found at {merged_path}. Run merge_and_push first.")
 
-    # Patch llama.cpp's tokenizer hash check — VieNeu-TTS uses a custom BPE
-    # tokenizer (extra speech tokens) whose hash isn't in llama.cpp's registry.
+    # Patch llama.cpp's tokenizer hash check — VieNeu-TTS adds speech tokens to
+    # the base Qwen3 tokenizer, changing its hash so llama.cpp doesn't recognize
+    # it. The base is Qwen3, so the correct pre-tokenizer is "qwen2" (NOT gpt2 —
+    # gpt2 mangles BPE merge extraction and is rejected by the loader).
     base_py = "/opt/llama.cpp/conversion/base.py"
     with open(base_py, "r") as f:
         src = f.read()
     patched = src.replace(
         'raise NotImplementedError("BPE pre-tokenizer was not recognized - update get_vocab_base_pre()")',
-        'logger.warning("Unknown BPE pre-tokenizer hash, falling back to gpt2"); return "gpt2"',
+        'logger.warning("Unknown BPE pre-tokenizer hash, falling back to qwen2"); return "qwen2"',
     )
+    if patched == src:
+        raise RuntimeError("Tokenizer patch did not apply — llama.cpp base.py format changed.")
     with open(base_py, "w") as f:
         f.write(patched)
-    print("Patched llama.cpp tokenizer hash check.")
+    print("Patched llama.cpp tokenizer hash check → qwen2.")
 
     # Convert to F16 GGUF
     print("Converting merged model to F16 GGUF ...")
