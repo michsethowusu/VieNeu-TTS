@@ -5,6 +5,8 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     espeak-ng \
     libsndfile1 \
+    git \
+    libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install pre-built llama-cpp-python CPU wheel — no compilation needed
@@ -22,5 +24,9 @@ COPY sea_g2p_stub /usr/local/lib/python3.11/site-packages/sea_g2p
 COPY . .
 
 EXPOSE 7860
+
+# Set HF token for authenticated downloads (add as Space secret HF_TOKEN)
+ARG HF_TOKEN
+ENV HF_TOKEN=${HF_TOKEN}
 
 CMD ["python", "app.py"]

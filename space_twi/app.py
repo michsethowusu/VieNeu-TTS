@@ -1,10 +1,8 @@
 import os
 import re
 import json
-import io
 import numpy as np
 import gradio as gr
-import soundfile as sf
 from huggingface_hub import hf_hub_download
 
 # ---------------------------------------------------------------------------
@@ -44,10 +42,10 @@ def get_codec():
 def get_model(gguf_file: str):
     if gguf_file not in _model_cache:
         from llama_cpp import Llama
-        model_path = hf_hub_download(repo_id=MODEL_REPO, filename=gguf_file, repo_type="model")
-        print(f"Loading {gguf_file} ...")
-        _model_cache[gguf_file] = Llama(
-            model_path=model_path,
+        print(f"Loading {gguf_file} from {MODEL_REPO} ...")
+        _model_cache[gguf_file] = Llama.from_pretrained(
+            repo_id=MODEL_REPO,
+            filename=gguf_file,
             n_ctx=2048,
             n_gpu_layers=0,
             verbose=False,
@@ -122,12 +120,9 @@ def generate(text: str, voice_name: str, gguf_choice: str,
 
     codes_arr = np.array(codes, dtype=np.int32)[np.newaxis, np.newaxis, :]
     wav = codec.decode_code(codes_arr)
-    wav = wav[0, 0, :]
+    wav = wav[0, 0, :].astype(np.float32)
 
-    buf = io.BytesIO()
-    sf.write(buf, wav, SAMPLE_RATE, format="WAV")
-    buf.seek(0)
-    return buf.read(), f"Generated {len(codes)} speech codes (~{len(codes)/50:.1f}s)"
+    return (SAMPLE_RATE, wav), f"Generated {len(codes)} speech codes (~{len(codes)/50:.1f}s)"
 
 # ---------------------------------------------------------------------------
 # Gradio UI
@@ -159,7 +154,7 @@ with gr.Blocks(title="VieNeu-TTS Twi") as demo:
             generate_btn = gr.Button("🎙️ Generate", variant="primary")
 
         with gr.Column():
-            audio_output  = gr.Audio(label="Output", type="binary")
+            audio_output  = gr.Audio(label="Output", type="numpy")
             status_output = gr.Textbox(label="Status", interactive=False)
 
     generate_btn.click(
