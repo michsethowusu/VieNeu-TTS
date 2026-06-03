@@ -1,0 +1,4 @@
+gradio>=4.0.0,<6.0.0
+modal>=0.64.0
+soundfile
+numpy
