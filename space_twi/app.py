@@ -15,7 +15,7 @@ MODEL_REPO    = "michsethowusu/VieNeu-TTS-Twi"
 CODEC_REPO    = "neuphonic/neucodec-onnx-decoder-int8"
 SAMPLE_RATE   = 24000
 MAX_REF_CODES = 200
-HF_TOKEN      = os.environ.get("HF_TOKEN")
+HF_TOKEN      = os.environ.get("HF_TOKEN") or None  # empty string -> None (public repo)
 GGUF_FILES = {
     "GGUF Q4_K_M (smaller, faster)": "VieNeu-TTS-Twi-Q4_K_M.gguf",
     "GGUF Q8_0 (larger, better quality)": "VieNeu-TTS-Twi-Q8_0.gguf",
