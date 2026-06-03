@@ -49,17 +49,12 @@ def test_hybrid(gguf_file: str = "VieNeu-TTS-Twi-Q4_K_M.gguf"):
     gguf_path = hf_hub_download(repo_id=REPO, filename=gguf_file)
     llm = Llama(model_path=gguf_path, n_ctx=2048, n_gpu_layers=0, verbose=False)
 
-    # 3) Build prompt with a real voice
-    vpath = hf_hub_download(repo_id=REPO, filename="voices.json")
-    voices = json.load(open(vpath, encoding="utf-8"))
-    vname = voices.get("default_voice") or list(voices["presets"].keys())[0]
-    voice = voices["presets"][vname]
-    ref_codes = voice["codes"][:200]
-    codes_str = "".join(f"<|speech_{c}|>" for c in ref_codes)
+    # 3) Build NO-VOICE prompt — just target phonemes, no ref codes
     prompt = (
-        f"<|TEXT_PROMPT_START|>{phon(voice['text']).strip()} {phon('Meda wo ase paa').strip()}"
-        f"<|TEXT_PROMPT_END|><|SPEECH_GENERATION_START|>{codes_str}"
+        f"<|TEXT_PROMPT_START|>{phon('Meda wo ase paa').strip()}"
+        f"<|TEXT_PROMPT_END|><|SPEECH_GENERATION_START|>"
     )
+    vname = "no_voice"
 
     # 4) Encode with HF tokenizer, generate on token IDs (bypass llama.cpp tokenizer)
     prompt_ids = tok.encode(prompt, add_special_tokens=False)

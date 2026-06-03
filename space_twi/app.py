@@ -1,6 +1,5 @@
 import os
 import re
-import json
 import numpy as np
 import gradio as gr
 from huggingface_hub import hf_hub_download
@@ -11,33 +10,23 @@ from vieneu.utils import NeuCodecOnnx
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-MODEL_REPO    = "michsethowusu/VieNeu-TTS-Twi"
-CODEC_REPO    = "neuphonic/neucodec-onnx-decoder-int8"
-SAMPLE_RATE   = 24000
-MAX_REF_CODES = 200
-HF_TOKEN      = os.environ.get("HF_TOKEN") or None  # empty string -> None (public repo)
+MODEL_REPO  = "michsethowusu/VieNeu-TTS-Twi"
+CODEC_REPO  = "neuphonic/neucodec-onnx-decoder-int8"
+SAMPLE_RATE = 24000
+HF_TOKEN    = os.environ.get("HF_TOKEN") or None  # empty string -> None (public repo)
 GGUF_FILES = {
     "GGUF Q4_K_M (smaller, faster)": "VieNeu-TTS-Twi-Q4_K_M.gguf",
     "GGUF Q8_0 (larger, better quality)": "VieNeu-TTS-Twi-Q8_0.gguf",
 }
 
 # ---------------------------------------------------------------------------
-# Load shared components: original tokenizer, ONNX codec, voices
-# (The GGUF embeds a broken tokenizer, so we tokenize with the ORIGINAL
-#  training tokenizer and feed token IDs straight to llama.cpp.)
+# Shared components. The GGUF embeds a broken tokenizer, so we tokenize with
+# the ORIGINAL training tokenizer and feed token IDs straight to llama.cpp.
 # ---------------------------------------------------------------------------
-print("Loading tokenizer, codec, voices ...")
+print("Loading tokenizer + codec ...")
 TOKENIZER     = AutoTokenizer.from_pretrained(MODEL_REPO, token=HF_TOKEN, trust_remote_code=True)
 SPEECH_END_ID = TOKENIZER.convert_tokens_to_ids("<|SPEECH_GENERATION_END|>")
 CODEC         = NeuCodecOnnx.from_pretrained(CODEC_REPO)
-
-_vpath = hf_hub_download(repo_id=MODEL_REPO, filename="voices.json", token=HF_TOKEN)
-VOICES = json.load(open(_vpath, encoding="utf-8"))
-VOICE_CHOICES = list(VOICES["presets"].keys())
-DEFAULT_VOICE = VOICES.get("default_voice") or VOICE_CHOICES[0]
-
-# Cache phonemized reference text per voice
-_ref_phoneme_cache = {}
 
 # ---------------------------------------------------------------------------
 # Lazy GGUF weights (one per variant)
@@ -71,12 +60,11 @@ def split_sentences(text: str):
     parts = [s.strip() for s in re.split(r"(?<=[.!?])\s+", text.strip()) if s.strip()]
     return parts or [text.strip()]
 
-def generate_codes(llm, ref_codes, ref_phones, target_phones,
-                   temperature, top_p, repetition_penalty, max_tokens=600):
-    codes_str = "".join(f"<|speech_{c}|>" for c in ref_codes[:MAX_REF_CODES])
+def generate_codes(llm, target_phones, temperature, top_p, repetition_penalty, max_tokens=600):
+    # No-voice prompt: just the target phonemes, no reference codes.
     prompt = (
-        f"<|TEXT_PROMPT_START|>{ref_phones.strip()} {target_phones.strip()}"
-        f"<|TEXT_PROMPT_END|><|SPEECH_GENERATION_START|>{codes_str}"
+        f"<|TEXT_PROMPT_START|>{target_phones.strip()}"
+        f"<|TEXT_PROMPT_END|><|SPEECH_GENERATION_START|>"
     )
     prompt_ids = TOKENIZER.encode(prompt, add_special_tokens=False)
 
@@ -95,27 +83,19 @@ def generate_codes(llm, ref_codes, ref_phones, target_phones,
 # ---------------------------------------------------------------------------
 # Inference
 # ---------------------------------------------------------------------------
-def generate(text, voice_name, gguf_choice, temperature, top_p, repetition_penalty):
+def generate(text, gguf_choice, temperature, top_p, repetition_penalty):
     if not text.strip():
         return None, "Please enter some text."
 
-    llm   = get_model(GGUF_FILES[gguf_choice])
-    voice = VOICES["presets"][voice_name]
-    ref_codes = voice["codes"]
-
-    if voice_name not in _ref_phoneme_cache:
-        _ref_phoneme_cache[voice_name] = phonemize(voice["text"])
-    ref_phones = _ref_phoneme_cache[voice_name]
+    llm = get_model(GGUF_FILES[gguf_choice])
 
     all_codes = []
     for sentence in split_sentences(text):
-        tgt_phones = phonemize(sentence)
-        codes = generate_codes(llm, ref_codes, ref_phones, tgt_phones,
-                               temperature, top_p, repetition_penalty)
+        codes = generate_codes(llm, phonemize(sentence), temperature, top_p, repetition_penalty)
         all_codes.extend(codes)
 
     if not all_codes:
-        return None, "No speech generated. Try lowering temperature or a different voice."
+        return None, "No speech generated. Try lowering temperature."
 
     wav = CODEC.decode_code(np.array(all_codes, dtype=np.int32))
     wav = np.asarray(wav).reshape(-1).astype(np.float32)
@@ -133,9 +113,8 @@ with gr.Blocks(title="VieNeu-TTS Twi") as demo:
         with gr.Column():
             text_input = gr.Textbox(label="Text (Twi)",
                                     placeholder="Meda wo ase paa. Onyame nhyira wo.", lines=3)
-            voice_select = gr.Dropdown(choices=VOICE_CHOICES, value=DEFAULT_VOICE, label="Voice")
-            gguf_select  = gr.Dropdown(choices=list(GGUF_FILES.keys()),
-                                       value="GGUF Q4_K_M (smaller, faster)", label="Model")
+            gguf_select = gr.Dropdown(choices=list(GGUF_FILES.keys()),
+                                      value="GGUF Q4_K_M (smaller, faster)", label="Model")
             with gr.Accordion("Advanced", open=False):
                 temperature = gr.Slider(0.1, 1.0, value=0.4, step=0.05, label="Temperature")
                 top_p       = gr.Slider(0.1, 1.0, value=0.8, step=0.05, label="Top-p")
@@ -147,7 +126,7 @@ with gr.Blocks(title="VieNeu-TTS Twi") as demo:
 
     generate_btn.click(
         fn=generate,
-        inputs=[text_input, voice_select, gguf_select, temperature, top_p, rep_penalty],
+        inputs=[text_input, gguf_select, temperature, top_p, rep_penalty],
         outputs=[audio_output, status_output],
     )
 
