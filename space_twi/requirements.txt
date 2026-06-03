@@ -4,3 +4,5 @@ huggingface_hub>=0.23.0
 phonemizer>=3.2.2
 numpy
 onnxruntime
+transformers
+tokenizers
