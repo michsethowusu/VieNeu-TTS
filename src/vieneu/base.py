@@ -16,7 +16,8 @@ class BaseVieneuTTS(ABC):
     Provides shared functionality for voice management and common operations.
     """
 
-    def __init__(self, codec_repo: Optional[str] = None, codec_device: str = "cpu"):
+    def __init__(self, codec_repo: Optional[str] = None, codec_device: str = "cpu", lang: str = "vi"):
+        self.lang = lang
         self.sample_rate = 24_000
         self.max_context = 2048
         self.hop_length = 480
@@ -243,10 +244,11 @@ class BaseVieneuTTS(ABC):
         """
         Get phonemized version of reference text, using cache if available.
         """
-        if ref_text not in self._ref_phoneme_cache:
+        cache_key = (ref_text, self.lang)
+        if cache_key not in self._ref_phoneme_cache:
             from vieneu_utils.phonemize_text import phonemize_with_dict
-            self._ref_phoneme_cache[ref_text] = phonemize_with_dict(ref_text)
-        return self._ref_phoneme_cache[ref_text]
+            self._ref_phoneme_cache[cache_key] = phonemize_with_dict(ref_text, lang=self.lang)
+        return self._ref_phoneme_cache[cache_key]
 
     def save(self, audio: np.ndarray, output_path: Union[str, Path]) -> None:
         """Save audio waveform to a file."""
@@ -403,7 +405,7 @@ class BaseVieneuTTS(ABC):
         from vieneu_utils.phonemize_text import phonemize_with_dict
 
         ref_text_phones = ref_phonemes if ref_phonemes else self.get_ref_phonemes(ref_text)
-        input_text_phones = input_phonemes if input_phonemes else phonemize_with_dict(input_text, skip_normalize=True)
+        input_text_phones = input_phonemes if input_phonemes else phonemize_with_dict(input_text, skip_normalize=True, lang=self.lang)
         codes_str = "".join([f"<|speech_{idx}|>" for idx in ref_codes_list])
 
         emotion_prefix = emotion_tag if emotion_tag else ""

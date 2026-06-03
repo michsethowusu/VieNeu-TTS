@@ -25,13 +25,15 @@ class RemoteVieNeuTTS(BaseVieneuTTS):
         codec_device: str = "cpu",
         hf_token: Optional[str] = None,
         emotion: str = "natural",
+        lang: str = "vi",
     ):
         self.api_base = api_base.rstrip('/')
         self.model_name = model_name
 
         super().__init__(
             codec_repo=codec_repo,
-            codec_device=codec_device
+            codec_device=codec_device,
+            lang=lang
         )
         # Override some streaming defaults for remote
         self.streaming_frames_per_chunk = 10
@@ -272,7 +274,7 @@ class RemoteVieNeuTTS(BaseVieneuTTS):
 
         # Pre-phonemize all for performance
         ref_phonemes = self.get_ref_phonemes(ref_text)
-        all_phonemes = phonemize_batch(texts, skip_normalize=True)
+        all_phonemes = phonemize_batch(texts, skip_normalize=True, lang=self.lang)
 
         sem = asyncio.Semaphore(concurrency_limit)
         async with aiohttp.ClientSession() as session:
@@ -288,7 +290,7 @@ class RemoteVieNeuTTS(BaseVieneuTTS):
                         return wav
 
                     # Re-phonemize chunks if splitting happened
-                    chunk_phonemes = phonemize_batch(chunks, skip_normalize=True)
+                    chunk_phonemes = phonemize_batch(chunks, skip_normalize=True, lang=self.lang)
                     tasks = [self._infer_chunk_async(session, c, ref_codes, ref_text, temperature, top_k, repetition_penalty, ref_phonemes=ref_phonemes, chunk_phonemes=c_ph, **kwargs)
                             for c, c_ph in zip(chunks, chunk_phonemes)]
                     wavs = await asyncio.gather(*tasks)

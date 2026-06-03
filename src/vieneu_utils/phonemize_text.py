@@ -1,7 +1,7 @@
 """
 Phonemization module for VieNeu-TTS.
-Delegates all normalization and G2P logic to the sea-g2p library,
-which provides a unified, tested, and maintained Vietnamese G2P pipeline.
+Delegates Vietnamese G2P to the sea-g2p library.
+For other languages (e.g. Twi), falls back to espeak-ng via the phonemizer library.
 """
 
 import functools
@@ -10,6 +10,42 @@ from typing import Optional
 from sea_g2p import SEAPipeline, G2P, Normalizer
 
 logger = logging.getLogger("Vieneu.Phonemizer")
+
+# ---------------------------------------------------------------------------
+# Espeak backend for non-Vietnamese languages
+# ---------------------------------------------------------------------------
+
+# Friendly language name → espeak language code
+_ESPEAK_LANG_MAP = {
+    "twi":  "lfn",
+    "tw":   "lfn",
+    "akan": "lfn",
+}
+
+def _to_espeak_code(lang: str) -> str:
+    return _ESPEAK_LANG_MAP.get(lang.lower(), lang)
+
+def _espeak_phonemize(text: str, lang: str) -> str:
+    from phonemizer import phonemize as _ph
+    return _ph(
+        text,
+        backend="espeak",
+        language=_to_espeak_code(lang),
+        with_stress=True,
+        preserve_punctuation=True,
+    )
+
+def _espeak_phonemize_batch(texts: list, lang: str) -> list:
+    from phonemizer import phonemize as _ph
+    result = _ph(
+        texts,
+        backend="espeak",
+        language=_to_espeak_code(lang),
+        with_stress=True,
+        preserve_punctuation=True,
+        njobs=1,
+    )
+    return result if isinstance(result, list) else [result]
 
 # ---------------------------------------------------------------------------
 # Shared singletons (instantiation is lazy-safe and thread-safe via GIL)
@@ -46,37 +82,40 @@ def _phonemize_cached(text: str) -> str:
     return _get_pipeline().run(text)
 
 
-def phonemize_text(text: str) -> str:
-    """Normalize and phonemize a single Vietnamese/bilingual text string."""
+def phonemize_text(text: str, lang: str = "vi") -> str:
+    """Normalize and phonemize a single text string."""
+    if lang != "vi":
+        return _espeak_phonemize(text, lang)
     return _phonemize_cached(text)
 
 
 def phonemize_batch(
-    texts: list[str],
+    texts: list,
     skip_normalize: bool = False,
     phoneme_dict: dict = None,
+    lang: str = "vi",
     **kwargs,
-) -> list[str]:
+) -> list:
     """
-    Phonemize multiple texts with bilingual support.
+    Phonemize multiple texts.
 
     Args:
         texts:          List of input strings.
-        skip_normalize: If True, assume the texts are already normalized
-                        (i.e. only run G2P, not the normalizer).
-        phoneme_dict:   Optional custom {word: phoneme} dict that overrides
-                        the built-in dictionary for specific words.
+        skip_normalize: If True, skip normalization (Vietnamese only).
+        phoneme_dict:   Optional custom {word: phoneme} override (Vietnamese only).
+        lang:           Language code. Use 'vi' for Vietnamese (default),
+                        'twi' for Twi/Akan, or any espeak language code.
     """
     if not texts:
         return []
 
-    g2p = _get_g2p()
+    if lang != "vi":
+        return _espeak_phonemize_batch(texts, lang)
 
+    g2p = _get_g2p()
     if skip_normalize:
-        # Texts are pre-normalized — only run the G2P layer
         return g2p.phonemize_batch(texts, phoneme_dict=phoneme_dict)
     else:
-        # Full pipeline: normalize then G2P
         normalizer = _get_normalizer()
         normalized = [normalizer.normalize(t) for t in texts]
         return g2p.phonemize_batch(normalized, phoneme_dict=phoneme_dict)
@@ -86,15 +125,17 @@ def phonemize_with_dict(
     text: str,
     phoneme_dict: dict = None,
     skip_normalize: bool = False,
+    lang: str = "vi",
 ) -> str:
     """
     Phonemize a single text, optionally with a custom word→phoneme mapping.
 
-    When phoneme_dict is None and skip_normalize is False, the result is
-    cached via lru_cache for performance.
+    For non-Vietnamese languages, phoneme_dict and skip_normalize are ignored
+    and espeak-ng is used directly.
     """
+    if lang != "vi":
+        return _espeak_phonemize(text, lang)
     if phoneme_dict is not None:
-        # Custom dict supplied — skip cache to avoid cross-contamination
         return phonemize_batch(
             [text], skip_normalize=skip_normalize, phoneme_dict=phoneme_dict
         )[0]

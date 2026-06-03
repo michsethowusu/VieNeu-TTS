@@ -44,12 +44,22 @@ from apps.ui_constants import (
 )
 
 # --- CONSTANTS & CONFIG ---
-CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.yaml")
+# Allow a custom config path via env var (e.g. for language-specific deployments)
+CONFIG_PATH = os.environ.get(
+    "VIENEU_CONFIG",
+    os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.yaml")
+)
 try:
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
         _config = yaml.safe_load(f) or {}
 except Exception as e:
     raise RuntimeError(f"Không thể đọc config.yaml: {e}")
+
+# Language and emotion overrides — set via env var for non-Vietnamese deployments
+# VIENEU_LANG:    language code, e.g. "twi".  Default: "vi"
+# VIENEU_EMOTION: "natural" or "none".        Default: "natural"
+_LANG    = os.environ.get("VIENEU_LANG", "vi")
+_EMOTION = None if os.environ.get("VIENEU_EMOTION", "natural").lower() == "none" else os.environ.get("VIENEU_EMOTION", "natural")
 
 BACKBONE_CONFIGS = _config.get("backbone_configs", {})
 CODEC_CONFIGS = _config.get("codec_configs", {})
@@ -451,7 +461,8 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
                     tp=1,
                     enable_prefix_caching=False,
                     enable_triton=True,
-                    hf_token=custom_hf_token
+                    hf_token=custom_hf_token,
+                    lang=_LANG,
                 )
                 using_lmdeploy = True
                 
@@ -553,7 +564,8 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
                     decoder_repo=codec_config["repo"],
                     device=backbone_device,
                     backend="lmdeploy" if force_lmdeploy and "GPU" in backbone_choice else "standard",
-                    hf_token=custom_hf_token
+                    hf_token=custom_hf_token,
+                    lang=_LANG,
                 )
             else:
                 from vieneu.standard import VieNeuTTS
@@ -563,7 +575,9 @@ def load_model(backbone_choice: str, codec_choice: str, device_choice: str,
                     codec_repo=codec_config["repo"],
                     codec_device=codec_device,
                     hf_token=custom_hf_token,
-                    gguf_filename=backbone_config.get("gguf_filename")
+                    gguf_filename=backbone_config.get("gguf_filename"),
+                    lang=_LANG,
+                    emotion=_EMOTION,
                 )
 
             # Perform LoRA Merge if needed (ONLY for Standard Backend)

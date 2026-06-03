@@ -30,8 +30,9 @@ class FastVieNeuTTS(BaseVieneuTTS):
         enable_triton: bool = True,
         max_batch_size: int = 4,
         hf_token: Optional[str] = None,
+        lang: str = "vi",
     ):
-        super().__init__()
+        super().__init__(lang=lang)
         self.device = backbone_device
 
         if backbone_device != "cuda" and not backbone_device.startswith("cuda:"):
@@ -165,7 +166,7 @@ class FastVieNeuTTS(BaseVieneuTTS):
 
         # Pre-phonemize all for performance
         ref_phonemes = self.get_ref_phonemes(ref_text)
-        chunk_phonemes = phonemize_batch(texts, skip_normalize=True)
+        chunk_phonemes = phonemize_batch(texts, skip_normalize=True, lang=self.lang)
 
         self.gen_config.temperature = temperature
         self.gen_config.top_k = top_k

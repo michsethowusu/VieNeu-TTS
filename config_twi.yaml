@@ -1,0 +1,28 @@
+text_settings:
+  max_chars_per_chunk: 256
+  max_total_chars_streaming: 3000
+
+backbone_configs:
+  "VieNeu-TTS Twi (CPU - GGUF Q4)":
+    repo: michsethowusu/VieNeu-TTS-Twi
+    gguf_filename: VieNeu-TTS-Twi-Q4_K_M.gguf
+    supports_streaming: false
+    description: "Twi TTS — CPU GGUF Q4_K_M, ~10-30s/sentence"
+  "VieNeu-TTS Twi (CPU - PyTorch)":
+    repo: michsethowusu/VieNeu-TTS-Twi
+    supports_streaming: false
+    description: "Twi TTS — CPU PyTorch, ~1-2 min/sentence"
+  "VieNeu-TTS Twi (GPU)":
+    repo: michsethowusu/VieNeu-TTS-Twi
+    supports_streaming: false
+    description: "Twi TTS — GPU PyTorch, ~3-5s/sentence"
+
+codec_configs:
+  "NeuCodec (ONNX)":
+    repo: neuphonic/neucodec-onnx-decoder-int8
+    description: "Lightweight ONNX codec, CPU-friendly"
+    use_preencoded: false
+  "NeuCodec (Distill)":
+    repo: neuphonic/distill-neucodec
+    description: "Distilled codec for GPU"
+    use_preencoded: false

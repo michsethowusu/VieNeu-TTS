@@ -27,8 +27,9 @@ class VieNeuTTS(BaseVieneuTTS):
         hf_token: Optional[str] = None,
         gguf_filename: Optional[str] = "VieNeu-TTS-v2-Q4-K-M.gguf",
         emotion: str = "natural",
+        lang: str = "vi",
     ):
-        super().__init__()
+        super().__init__(lang=lang)
 
         # Streaming configuration
         self.streaming_overlap_frames = 1
@@ -206,7 +207,7 @@ class VieNeuTTS(BaseVieneuTTS):
 
         if len(chunks) == 1:
             ref_phonemes = self.get_ref_phonemes(ref_text)
-            phonemes = phonemize_with_dict(chunks[0], skip_normalize=True)
+            phonemes = phonemize_with_dict(chunks[0], skip_normalize=True, lang=self.lang)
             if self._is_quantized_model:
                 output_str = self._infer_ggml(ref_codes, ref_phonemes, phonemes, temperature, top_k, emotion_tag=kwargs.get('emotion_tag', self.default_emotion))
             else:
@@ -239,7 +240,7 @@ class VieNeuTTS(BaseVieneuTTS):
             texts = [self.normalizer.normalize(t) for t in texts]
 
         ref_phonemes = self.get_ref_phonemes(ref_text)
-        chunk_phonemes = phonemize_batch(texts, skip_normalize=True)
+        chunk_phonemes = phonemize_batch(texts, skip_normalize=True, lang=self.lang)
 
         all_wavs = []
         # If model is GGUF, we still process sequentially for now as llama-cpp-python batching for TTS is complex
