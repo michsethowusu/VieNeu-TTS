@@ -46,10 +46,19 @@ _models = {}
 
 def get_model(gguf_file: str):
     if gguf_file not in _models:
+        import multiprocessing
         from llama_cpp import Llama
+        n_threads = max(multiprocessing.cpu_count(), 1)
         path = hf_hub_download(repo_id=MODEL_REPO, filename=gguf_file, token=HF_TOKEN)
-        print(f"Loading GGUF weights: {gguf_file} ...")
-        _models[gguf_file] = Llama(model_path=path, n_ctx=2048, n_gpu_layers=0, verbose=False)
+        print(f"Loading GGUF weights: {gguf_file} (n_threads={n_threads}) ...")
+        _models[gguf_file] = Llama(
+            model_path=path,
+            n_ctx=2048,
+            n_gpu_layers=0,
+            n_threads=n_threads,
+            n_threads_batch=n_threads,
+            verbose=False,
+        )
     return _models[gguf_file]
 
 # ---------------------------------------------------------------------------
@@ -63,7 +72,7 @@ def split_sentences(text: str):
     return parts or [text.strip()]
 
 def generate_codes(llm, ref_codes, ref_phones, target_phones,
-                   temperature, top_p, repetition_penalty, max_tokens=1200):
+                   temperature, top_p, repetition_penalty, max_tokens=600):
     codes_str = "".join(f"<|speech_{c}|>" for c in ref_codes[:MAX_REF_CODES])
     prompt = (
         f"<|TEXT_PROMPT_START|>{ref_phones.strip()} {target_phones.strip()}"
