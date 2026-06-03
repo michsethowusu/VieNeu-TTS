@@ -88,10 +88,11 @@ def merge_and_push(hf_repo: str, voices_json_str: str = "", checkpoint: str = "f
     hf_token    = os.environ["HF_TOKEN"]
     merged_path = os.path.join(OUTPUT_MOUNT, RUN_NAME, "merged")
 
-    # Resolve adapter path — download from HF if it's a checkpoint name
+    # Resolve adapter path — download from HF if missing or incomplete
     adapter_path = os.path.join(OUTPUT_MOUNT, RUN_NAME, checkpoint)
-    if not os.path.exists(adapter_path):
-        print(f"Adapter not found locally — downloading {checkpoint} from {HF_CHECKPOINT_REPO} ...")
+    config_file  = os.path.join(adapter_path, "adapter_config.json")
+    if not os.path.exists(config_file):
+        print(f"Adapter incomplete or missing — downloading {checkpoint} from {HF_CHECKPOINT_REPO} ...")
         snapshot_download(
             repo_id=HF_CHECKPOINT_REPO,
             repo_type="model",
@@ -101,7 +102,7 @@ def merge_and_push(hf_repo: str, voices_json_str: str = "", checkpoint: str = "f
         )
         # snapshot_download nests: adapter_path/checkpoint/files — unwrap if needed
         nested = os.path.join(adapter_path, checkpoint)
-        if os.path.exists(nested):
+        if os.path.exists(os.path.join(nested, "adapter_config.json")):
             adapter_path = nested
     voices_src   = os.path.join(DATASET_MOUNT, "voices.json")
 

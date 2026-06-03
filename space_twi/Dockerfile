@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y \
 
 # Install pre-built llama-cpp-python CPU wheel — no compilation needed
 RUN pip install --no-cache-dir \
-    https://huggingface.co/michsethowusu/VieNeu-TTS-Twi/resolve/main/wheels/llama_cpp_python-0.3.16-cp311-cp311-linux_x86_64.whl
+    https://huggingface.co/michsethowusu/VieNeu-TTS-Twi/resolve/main/wheels/llama_cpp_python-0.3.25-py3-none-linux_x86_64.whl
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
